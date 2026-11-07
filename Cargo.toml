@@ -1,0 +1,17 @@
+[package]
+name = "atlas-celeste"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+raylib = "5.5.1"
+glam = "0.30"
+noise = "0.9"
+rayon = "1.10"
+tobj = "4"
+image = { version = "0.25", default-features = false, features = ["png"] }
+gif = "0.13"
+
+[profile.release]
+lto = "thin"
+
