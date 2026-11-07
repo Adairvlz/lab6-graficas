@@ -61,7 +61,11 @@ Implementación: [`stars::sun`](src/shaders/stars.rs). Parámetros: `19.0` cambi
 
 Un fBm de cinco octavas define altura aparente. Una transición suave alrededor de cero separa océanos y tierra; otras máscaras asignan aguas someras, zonas secas, montañas y hielo polar. El relieve es un patrón de color, no desplazamiento ni bump mapping. El océano tiene un reflejo especular restringido por la máscara de agua.
 
-Las nubes usan un campo distinto en coordenadas que giran con el tiempo, mientras los continentes permanecen fijos. Para sombrear el terreno se consulta ese mismo campo desplazado hacia la luz: así las sombras quedan separadas de las nubes. Es una aproximación procedural de capa alta, no ray tracing volumétrico. Un término de borde dependiente de la vista y de la luz simula atmósfera dentro de la silueta.
+Las nubes usan un campo distinto en coordenadas que giran con el tiempo, mientras los continentes permanecen fijos. Para sombrear el terreno se intersecta analíticamente un rayo hacia la luz con una capa esférica de radio `1 + 0.075` y se consulta allí la misma máscara de nubes. No se agrega otra esfera al modelo: es un cálculo matemático. La dirección de la luz determina el desplazamiento de las sombras. Un término de borde dependiente de la vista y de la luz simula atmósfera dentro de la silueta.
+
+De noche aparecen asentamientos ámbar sobre la tierra, excluyendo océanos y hielo. Dos campos de ruido forman agrupaciones y puntos finos; la emisión se activa con `1 - smoothstep(-0.22, 0.02, normal · luz)`. Las nubes ocultan las luces. No es simplemente iluminación difusa: el patrón emisivo desaparece de día. `145.0` controla el tamaño de los puntos, `0.23, 0.48` su densidad y `2.4` su brillo. Para comprobarlo, presionar **2, Espacio y L**: el material queda quieto mientras la luz recorre día y noche.
+
+![Nereida nocturna](docs/nereida-noche.png)
 
 Implementación: [`planets::rocky` y `clouds`](src/shaders/planets.rs). Parámetros: `2.8` cambia la escala continental; `-0.035, 0.025` las costas; `0.77, 0.9` los casquetes; `6.8` el tamaño de las nubes; `0.065` su velocidad; `0.075` la separación aparente de su sombra; `75.0` la concentración del reflejo; `3.5` el grosor visual del borde atmosférico.
 
@@ -79,7 +83,24 @@ Implementación: [`planets::gas`](src/shaders/planets.rs). Parámetros: `37.0` c
 
 ## Efectos presentados para evaluación
 
-El enunciado recibido menciona 150 puntos disponibles pero **no incluye la tabla de efectos y sus valores**. Esta lista documenta efectos observables; no afirma una suma de 120 ni una nota garantizada. Cada efecto se solicita una sola vez. Las nubes móviles no se vuelven a contar como material animado.
+Según la rúbrica, esta entrega solicita **120 puntos posibles: 60 base + 60 adicionales**, con nota máxima de **100**. Es una correspondencia de implementación con criterios, no una nota garantizada; el profesor puede otorgar crédito parcial por el resultado observable. Cada efecto se solicita una sola vez. Las nubes móviles no se vuelven a contar como material animado.
+
+| Criterio de la rúbrica | Puntos solicitados | Evidencia / implementación |
+| --- | ---: | --- |
+| Estrella procedural propia | 10 | Helios |
+| Rocoso con regiones diferenciadas | 10 | Nereida |
+| Gigante con bandas atmosféricas | 10 | Zéfiro |
+| Diseño visual | 20 | Paletas y capturas de los tres cuerpos |
+| Entrega | 10 | Repositorio, instrucciones, capturas y parámetros |
+| Material animado | 5 | [Helios](docs/helios.gif), `stars::sun` |
+| Apariencia de día y noche | 5 | [Luz móvil](docs/luz.gif), `planets::night_lights` y `night_mask` |
+| Respuestas diferentes a la iluminación | 10 | [Luz móvil](docs/luz.gif), océano especular y tierra mate en `planets::rocky` |
+| Nubes procedurales | 10 | [Nereida](docs/nereida.gif), `planets::clouds`; umbrales `0.02, 0.28` ajustan cobertura |
+| Tormenta o vórtice localizado | 10 | [Zéfiro](docs/zefiro.gif), `planets::gas`; distorsión de bandas dentro de la máscara elíptica |
+| Sombras de nubes | 20 | [Luz móvil](docs/luz.gif), `planets::cloud_shadow`; altura `0.075` controla separación |
+| **Total solicitado** | **120** | **Nota máxima: 100** |
+
+No se solicitan bump mapping ni parallax (30 puntos restantes). Las normales radiales suaves no son bump mapping; girar la esfera no es parallax. El hielo y el borde atmosférico contribuyen al diseño visual, sin puntos extra independientes.
 
 | Efecto | Cuerpo y función | Evidencia | Parámetro y resultado |
 | --- | --- | --- | --- |
@@ -111,6 +132,6 @@ Seleccionar cada cuerpo; pausar Helios para inspeccionar las manchas; observar c
 
 ## Entrega
 
-Repositorio de entrega: [Adairvlz/lab6-graficas](https://github.com/Adairvlz/lab6-graficas). Incluye `Cargo.lock`, `assets/`, `src/` y `docs/`; `target/` queda excluido. Falta contrastar la lista de efectos con la tabla completa de puntuación del profesor antes de afirmar que suma 120 puntos.
+Repositorio de entrega: [Adairvlz/lab6-graficas](https://github.com/Adairvlz/lab6-graficas). Incluye `Cargo.lock`, `assets/`, `src/` y `docs/`; `target/` queda excluido. La tabla anterior relaciona la entrega con los 120 puntos solicitados de la rúbrica.
 
 Referencias de instalación: [Rust en Windows](https://rust-lang.github.io/rustup/installation/windows.html), [raylib-rs](https://github.com/deltaphc/raylib-rs). El código del laboratorio se desarrolló con asistencia de un LLM; los fragmentos del profesor sirvieron de referencia para organizar módulos y separar las etapas del pipeline.

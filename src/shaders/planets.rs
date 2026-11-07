@@ -3,8 +3,29 @@ use crate::{fragment::Fragment, Uniforms};
 use glam::{Mat3, Vec3};
 
 fn clouds(p: Vec3, u: &Uniforms) -> f32 {
-    let q = Mat3::from_rotation_y(u.time * 0.065) * p;
+    let q = Mat3::from_rotation_y(u.time * 0.065) * p.normalize_or_zero();
     smoothstep(0.02, 0.28, fbm(&u.noise, q * 6.8 + Vec3::splat(23.0), 4))
+}
+
+fn night_mask(normal: Vec3, light: Vec3) -> f32 {
+    1.0 - smoothstep(-0.22, 0.02, normal.dot(light))
+}
+
+fn night_lights(p: Vec3, u: &Uniforms) -> f32 {
+    // Agrupaciones y puntos finos anclados al terreno, no al tiempo.
+    let settlements = smoothstep(-0.10, 0.22, fbm(&u.noise, p * 12.0, 3));
+    let points = smoothstep(0.23, 0.48, fbm(&u.noise, p * 145.0, 2));
+    settlements * points
+}
+
+fn cloud_shadow(p: Vec3, light: Vec3, u: &Uniforms) -> f32 {
+    // Interseccion analitica del rayo hacia la luz con una capa de radio 1+h.
+    // No se agrega geometria: se consulta la misma mascara procedural.
+    let surface = p.normalize_or_zero();
+    let height = 0.075;
+    let dot = surface.dot(light);
+    let distance = -dot + (dot * dot + (1.0_f32 + height).powi(2) - 1.0).sqrt();
+    clouds(surface + light * distance, u)
 }
 pub fn rocky(f: &Fragment, u: &Uniforms) -> Vec3 {
     let p = f.object_position;
@@ -33,18 +54,37 @@ pub fn rocky(f: &Fragment, u: &Uniforms) -> Vec3 {
     let diffuse = f.normal.dot(u.light).max(0.0);
     // Muestrear la capa alta hacia la luz desplaza la sombra respecto a la nube.
     let local_light = Mat3::from_rotation_y(-u.angle) * u.light;
-    let shadow = clouds((p + local_light * 0.075).normalize(), u);
+    let shadow = cloud_shadow(p, local_light, u);
     base *= (0.09 + diffuse * 0.91) * (1.0 - shadow * 0.48 * diffuse);
     let half = (u.light + Vec3::Z).normalize();
     let spec = f.normal.dot(half).max(0.0).powf(75.0) * (1.0 - land) * (1.0 - ice);
     base += Vec3::new(0.7, 0.87, 1.0) * spec * 0.85;
+    // Emision nocturna solo sobre tierra sin hielo. Las nubes la ocultan abajo.
+    base += Vec3::new(1.0, 0.62, 0.18)
+        * night_lights(p, u)
+        * night_mask(f.normal, u.light)
+        * land
+        * (1.0 - ice)
+        * 2.4;
     base = mix(
         base,
-        Vec3::splat(0.24 + diffuse * 0.76),
+        Vec3::splat(0.055 + diffuse * 0.945),
         clouds(p, u) * 0.92,
     );
     let rim = (1.0 - f.normal.z.abs()).powf(3.5) * smoothstep(-0.2, 0.6, f.normal.dot(u.light));
     base + Vec3::new(0.12, 0.48, 0.92) * rim * 0.65
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn night_emission_switches_with_light_not_time() {
+        assert_eq!(night_mask(Vec3::Z, Vec3::Z), 0.0);
+        assert_eq!(night_mask(Vec3::Z, -Vec3::Z), 1.0);
+        let twilight = night_mask(Vec3::Z, Vec3::X);
+        assert!(twilight > 0.0 && twilight < 1.0);
+    }
 }
 
 pub fn gas(f: &Fragment, u: &Uniforms) -> Vec3 {

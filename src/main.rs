@@ -85,6 +85,15 @@ fn capture(mesh: &[mesh::Vertex], u: &mut Uniforms) -> Result<(), Box<dyn Error>
         let a = i as f32 / 60.0 * std::f32::consts::TAU;
         u.light = Vec3::new(a.sin(), 0.35, a.cos()).normalize();
         let mut rgba = shade(&fragments, u);
+        if i == 30 {
+            image::save_buffer(
+                "docs/nereida-noche.png",
+                &rgba,
+                size as u32,
+                size as u32,
+                image::ColorType::Rgba8,
+            )?;
+        }
         let mut frame = gif::Frame::from_rgba_speed(size as u16, size as u16, &mut rgba, 20);
         frame.delay = 10;
         encoder.write_frame(&frame)?;
